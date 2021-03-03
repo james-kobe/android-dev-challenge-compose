@@ -15,47 +15,185 @@
  */
 package com.example.androiddevchallenge
 
+import android.app.Activity
+import android.content.Intent
 import android.os.Bundle
+import android.widget.Toast
 import androidx.activity.compose.setContent
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
-import androidx.compose.material.MaterialTheme
-import androidx.compose.material.Surface
-import androidx.compose.material.Text
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.*
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.livedata.observeAsState
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.painter.Painter
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.lifecycle.LiveData
+import androidx.lifecycle.ViewModelProvider
+import com.example.androiddevchallenge.extension.Shadow
+import com.example.androiddevchallenge.model.Cat
 import com.example.androiddevchallenge.ui.theme.MyTheme
+import com.example.androiddevchallenge.util.Resource
 
+/**
+ * MainActivity
+ *
+ * @author james
+ * @since 2022/3/3
+ */
 class MainActivity : AppCompatActivity() {
+
+    private val viewModel by lazy {
+        ViewModelProvider(this, MainViewModelFactory()).get(MainViewModel::class.java)
+    }
+
+    private val startForResult =
+        registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
+            if (result.resultCode == Activity.RESULT_OK) {
+                result.data?.let {
+                    val adopted = it.getBooleanExtra(ADOPTED, false)
+                    val position = it.getIntExtra(SELECTED_POSITION, 0)
+                    if (adopted) {
+                        viewModel.setCatAdopted(position)
+                    }
+                }
+            }
+        }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContent {
             MyTheme {
-                MyApp()
+                Scaffold(
+                    topBar = {
+                        TopAppBar(
+                            title = {
+                                Text(
+                                    text = getString(R.string.app_name),
+                                )
+                            },
+                            backgroundColor = Color.Transparent, elevation = 0.dp
+                        )
+                    }
+                ) {
+                    DisplayCatList(catsLiveData = viewModel.catsLiveData) { position, cat ->
+                        Intent(this, CatDetailActivity::class.java).apply {
+                            putExtra(SELECTED_POSITION, position)
+                            putExtra(SELECTED_CAT, cat)
+                            startForResult.launch(this)
+                        }
+                    }
+                }
             }
         }
+        // Read and parse the contacts data and get notified by observer when data is ready.
+        viewModel.readAndParseData()
     }
 }
 
 // Start building your app here!
 @Composable
-fun MyApp() {
-    Surface(color = MaterialTheme.colors.background) {
-        Text(text = "Ready... Set... GO!")
+fun DisplayCatList(
+    catsLiveData: LiveData<Resource<List<Cat>>>,
+    onClick: (position: Int, cat: Cat) -> Unit
+) {
+    val resource by catsLiveData.observeAsState()
+    resource?.let {
+        when (it.status) {
+            Resource.SUCCESS -> {
+                // Cats data is ready.
+                it.data?.let { cats ->
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(top = 8.dp, bottom = 8.dp)
+                    ) {
+                        LazyColumn(Modifier.fillMaxWidth()) {
+                            itemsIndexed(cats) { position, cat ->
+                                DisplayCatItem(position, cat, onClick)
+                            }
+                        }
+                    }
+                }
+            }
+            Resource.LOADING -> {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .fillMaxHeight(),
+                    contentAlignment = Alignment.Center
+                ) {
+                    CircularProgressIndicator()
+                }
+            }
+            else -> {
+                Toast.makeText(
+                    GlobalApp.context,
+                    "Failed to get cats data. ${it.message}",
+                    Toast.LENGTH_SHORT
+                ).show()
+            }
+        }
     }
 }
 
-@Preview("Light Theme", widthDp = 360, heightDp = 640)
 @Composable
-fun LightPreview() {
-    MyTheme {
-        MyApp()
+fun DisplayCatItem(position: Int, cat: Cat, onClick: (position: Int, cat: Cat) -> Unit) {
+    Card(
+        elevation = 4.dp,
+        shape = RoundedCornerShape(4.dp),
+        modifier = Modifier
+            .padding(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 8.dp)
+            .fillMaxWidth()
+            .requiredHeight(220.dp)
+            .clickable { onClick(position, cat) }
+    ) {
+        CardItem(name = cat.name, avatar = cat.avatarFilename)
     }
 }
 
-@Preview("Dark Theme", widthDp = 360, heightDp = 640)
 @Composable
-fun DarkPreview() {
-    MyTheme(darkTheme = true) {
-        MyApp()
+fun CardItem(name: String, avatar: String) {
+    val imageIdentity = GlobalApp.context.resources.getIdentifier(
+        avatar, "drawable",
+        GlobalApp.context.packageName
+    )
+    val image: Painter = painterResource(imageIdentity)
+    Image(
+        painter = image,
+        contentDescription = name,
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(shape = RoundedCornerShape(8.dp)),
+        contentScale = ContentScale.Crop
+    )
+    Column(
+        modifier = Modifier.fillMaxSize(),
+        verticalArrangement = Arrangement.Bottom
+    ) {
+        Surface(
+            color = Color.Shadow,
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Text(
+                text = name,
+                color = Color.White,
+                fontSize = 20.sp,
+                modifier = Modifier.padding(8.dp)
+            )
+        }
     }
 }
