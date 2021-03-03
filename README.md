@@ -1,4 +1,4 @@
-# Puppies Home
+# Kittens Home
 
 <!--- Replace <OWNER> with your Github Username and <REPOSITORY> with the name of your repository. -->
 <!--- You can find both of these in the url bar when you open your repository in github. -->
@@ -7,9 +7,9 @@
 
 ## :scroll: Description
 <!--- Describe your app in one or two sentences -->
-This is a challenge app for adopting puppies written by Jetpack Compose.
+This is a challenge app for adopting kittens written by Jetpack Compose.
 
-The app contains an overview screen that displays a list of puppies, and a detail screen showing each puppy's details.
+The app contains an overview screen that displays a list of kittens, and a detail screen showing each Kitten's details.
 
 ## :bulb: Motivation and Context
 <!--- Optionally point readers to interesting parts of your submission. -->
